@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f8f5ef">
+    <meta name="description" content="Explore an Ames, Iowa home price estimate using the model and findings from a completed house price prediction project.">
+    <title>Ames, Iowa House Price Prediction</title>
+    <link rel="stylesheet" href="/static/css/site.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="Ames House Price Prediction home">
+        <span class="wordmark-mark">AMES</span>
+        <span class="wordmark-divider" aria-hidden="true"></span>
+        <span class="wordmark-caption">HOUSE PRICE<br>PREDICTION</span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#estimate">Try the estimate</a>
+        <a href="#method">Model &amp; data</a>
+        <a class="nav-notebook" href="#method">Notebook &amp; method</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero page-shell" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-rule"></span> An interactive model demonstration</p>
+          <h1 id="page-title">Ames, Iowa<br>House Price Prediction</h1>
+          <p class="hero-description">Explore how a home's size, quality, and setting relate to its estimated sale price in the Ames housing dataset.</p>
+          <a class="text-link" href="#estimate">Explore a house estimate <span aria-hidden="true">↓</span></a>
+        </div>
+        <div class="hero-art-wrap">
+          <img class="hero-art" src="/static/images/ames-house-engraving.png" alt="Sepia line illustration of a two-story home and mature tree">
+          <span class="hero-art-caption">Ames, Iowa · Residential sales</span>
+        </div>
+      </section>
+
+      <section class="experience page-shell" id="estimate" aria-label="House price estimate and model validation">
+        <form class="feature-form" id="prediction-form">
+          <div class="section-heading">
+            <p class="section-kicker">Make an estimate</p>
+            <h2>Enter house features</h2>
+            <p>Adjust the property details below to explore the model's estimate.</p>
+          </div>
+
+          {% if not dataset_available %}
+          <div class="setup-alert" role="alert">The Ames dataset was not found. Follow the setup steps in the README before making a prediction.</div>
+          {% endif %}
+
+          <div class="form-fields">
+            <label class="field field-wide" for="neighborhood">
+              <span>Neighborhood</span>
+              <select name="Neighborhood" id="neighborhood" required {% if not neighborhoods %}disabled{% endif %}>
+                {% for neighborhood in neighborhoods %}
+                <option value="{{ neighborhood }}" {% if neighborhood == 'NAmes' %}selected{% endif %}>{{ neighborhood }}</option>
+                {% endfor %}
+              </select>
+              <small>Choose from the 25 neighborhoods in the dataset.</small>
+            </label>
+
+            <label class="field" for="living-area">
+              <span>Above-grade living area</span>
+              <span class="input-unit"><input id="living-area" name="GrLivArea" type="number" min="334" max="5642" step="1" value="1464" required><span>sq ft</span></span>
+            </label>
+            <label class="field" for="lot-area">
+              <span>Lot area</span>
+              <span class="input-unit"><input id="lot-area" name="LotArea" type="number" min="1300" max="215245" step="1" value="9479" required><span>sq ft</span></span>
+            </label>
+            <label class="field" for="quality">
+              <span>Overall quality</span>
+              <select id="quality" name="OverallQual" required>
+                {% for value in range(1, 11) %}
+                <option value="{{ value }}" {% if value == 6 %}selected{% endif %}>{{ value }} / 10</option>
+                {% endfor %}
+              </select>
+              <small>Rates overall material and finish quality.</small>
+            </label>
+            <label class="field" for="year-built">
+              <span>Year built</span>
+              <input id="year-built" name="YearBuilt" type="number" min="1872" max="2010" step="1" value="1973" required>
+            </label>
+            <label class="field" for="bedrooms">
+              <span>Bedrooms above grade</span>
+              <select id="bedrooms" name="BedroomAbvGr" required>
+                {% for value in range(0, 9) %}
+                <option value="{{ value }}" {% if value == 3 %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field" for="full-baths">
+              <span>Full bathrooms</span>
+              <select id="full-baths" name="FullBath" required>
+                {% for value in range(0, 4) %}
+                <option value="{{ value }}" {% if value == 2 %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field" for="garage-cars">
+              <span>Garage spaces</span>
+              <select id="garage-cars" name="GarageCars" required>
+                {% for value in range(0, 5) %}
+                <option value="{{ value }}" {% if value == 2 %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+
+          <button class="button-primary" id="predict-button" type="submit">Predict house price</button>
+          <p class="form-hint">Inputs are limited to ranges represented in the Ames dataset.</p>
+        </form>
+
+        <div class="results-column">
+          <section class="prediction-panel" aria-live="polite" aria-atomic="true">
+            <p class="section-kicker">Model estimate</p>
+            <h2>Predicted house price</h2>
+            <p class="prediction-value" id="prediction-value">Ready to explore</p>
+            <p class="prediction-caption" id="prediction-caption">Change the details and select “Predict house price” to see the model's estimate.</p>
+            <p class="error-message" id="error-message" role="alert" hidden></p>
+            <div class="result-divider"></div>
+            <p class="result-disclosure"><strong class="disclosure-label">Note</strong><span>This form uses 8 of the model's 79 predictors. The remaining features use median or most-frequent values learned from the training split, so the estimate is illustrative.</span></p>
+          </section>
+
+          <section class="validation-panel" aria-labelledby="validation-heading">
+            <div class="validation-heading-row">
+              <div>
+                <p class="section-kicker">Held-out validation set</p>
+                <h2 id="validation-heading">How the models compared</h2>
+              </div>
+              <span class="validation-count">292 homes</span>
+            </div>
+            <div class="metric-grid" role="table" aria-label="Model validation metrics">
+              <div class="metric-row metric-header" role="row">
+                <span role="columnheader">Model</span><span role="columnheader">MAE</span><span role="columnheader">RMSE</span><span role="columnheader">R²</span>
+              </div>
+              {% for model_name, values in metrics.items() %}
+              <div class="metric-row {% if model_name == 'Gradient Boosting' %}metric-row-best{% endif %}" role="row">
+                <span role="cell">{{ model_name }}</span><span role="cell">${{ '{:,.0f}'.format(values.mae) }}</span><span role="cell">${{ '{:,.0f}'.format(values.rmse) }}</span><span role="cell">{{ '%.4f'|format(values.r2) }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <p class="metric-note">MAE and RMSE are in dollars. R² measures fit on this validation split. Results are from the notebook.</p>
+          </section>
+        </div>
+      </section>
+
+      <section class="method-section page-shell" id="method">
+        <div class="method-intro">
+          <p class="section-kicker">Behind the estimate</p>
+          <h2>One dataset.<br>A transparent pipeline.</h2>
+          <p>The demonstration recreates the notebook's Gradient Boosting workflow. It retrains from the provided Ames data on first prediction and reuses that fitted pipeline while the app is running.</p>
+        </div>
+        <div class="method-details">
+          <article class="method-item">
+            <span class="method-index">01</span>
+            <div><h3>Prepare the data</h3><p>Median imputation for numeric columns; most-frequent imputation and one-hot encoding for categorical columns.</p></div>
+          </article>
+          <article class="method-item">
+            <span class="method-index">02</span>
+            <div><h3>Fit the model</h3><p>Gradient Boosting with 200 estimators, a 0.05 learning rate, depth 3, and random state 42.</p></div>
+          </article>
+          <article class="method-item">
+            <span class="method-index">03</span>
+            <div><h3>Read the evidence</h3><p>The notebook's 80/20 split reserves 292 homes for validation. Overall quality and above-grade living area are its strongest reported features.</p></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="insights-section page-shell" aria-labelledby="insights-heading">
+        <div class="insights-copy">
+          <p class="section-kicker">What the notebook found</p>
+          <h2 id="insights-heading">Quality and space stand out.</h2>
+          <p>Feature importance describes how much each feature contributed to this fitted model's decisions. It does not show causation or a guaranteed price change.</p>
+        </div>
+        <div class="importance-list">
+          {% for item in feature_importance %}
+          <div class="importance-item">
+            <div class="importance-label"><span>{{ item.feature }}</span><span>{{ '%.0f'|format(item.importance * 100) }}%</span></div>
+            <div class="importance-track"><span style="width: {{ item.importance * 100 }}%"></span></div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="dataset-strip page-shell" aria-label="Dataset overview">
+        <div class="dataset-copy"><p class="section-kicker">About the data</p><h2>Ames housing data</h2></div>
+        <div class="dataset-stat"><strong>1,460</strong><span>homes</span></div>
+        <div class="dataset-stat"><strong>79</strong><span>predictor features</span></div>
+        <div class="dataset-stat"><strong>$163,000</strong><span>median sale price</span></div>
+        <p class="dataset-footnote">The model and analysis are for learning and demonstration, not a current market valuation.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer page-shell">
+      <span>House Price Prediction · Portfolio demonstration</span>
+      <a href="#method">View methodology</a>
+    </footer>
+    <script src="/static/js/prediction.js" defer></script>
+  </body>
+</html>
